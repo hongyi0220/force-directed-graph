@@ -1,0 +1,114 @@
+class App extends React.Component {
+   constructor(props) {
+      super(props);
+      this.buildGraph = this.buildGraph.bind(this);
+   }
+   
+   buildGraph(dataset) {
+      // Set dimensions
+      const width = document.documentElement.clientWidth || window.innerWidth;
+      const height = document.documentElement.clientHeight || window.innerHeight;
+      const svgWidth = width, svgHeight = 500;
+      const radius = 2;
+      const nodes = dataset.nodes;
+      const links = dataset.links;
+      const svg = d3.select('.container')
+                    .append('svg')
+                    .attr('width', svgWidth)
+                    .attr('height', svgHeight);
+      // Calculate title height
+      const title = document.querySelector('.title');
+      const titleHeight = title.clientHeight;
+
+      const tooltip = d3.select('.tooltip').style('visibility', 'hidden');
+      
+      const ticked = () => {
+         node.style('left', d => d.x - 7 + 'px')
+             .style('top', d => d.y + titleHeight + 'px');
+         
+         link.attr('x1', d => d.source.x)
+             .attr('y1', d => d.source.y)
+             .attr('x2', d => d.target.x)
+             .attr('y2', d => d.target.y);
+      }
+      
+      const simulation = d3.forceSimulation(nodes)
+                      .force('link', d3.forceLink(links).distance(30))
+                      .force('center', d3.forceCenter(svgWidth / 2, svgHeight / 2))
+                      .force('X', d3.forceX([svgWidth / 4]))
+                      .force('Y', d3.forceY([svgHeight / 2]))
+                      .force('X', d3.forceX([svgWidth * (3 / 4)]))
+                      .force('Y', d3.forceY([svgHeight / 2]))
+                      .force('charge', d3.forceManyBody().strength(-50))
+                      .force('collision', d3.forceCollide().radius(radius))
+                      .on('tick', ticked);
+      // Drag event-handlers
+      const started = (d) => {
+         if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+         d.fx = d.x;
+         d.fy = d.y;
+      }
+      
+      const dragged = (d) => {
+            d.fx = d3.event.x;
+            d.fy = d3.event.y;
+      }
+      const ended = (d) => {
+            if (!d3.event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+      }
+      
+      const link = svg.append('g')
+                      .attr('class', 'links')
+                      .selectAll('line')
+                      .data(links).enter()
+                      .append('line');
+
+     
+     const node = d3.select('.container')
+                         .attr('width', svgWidth)
+                         .attr('height', svgHeight)
+                         .selectAll('img')
+                         .data(nodes).enter()
+                         .append('img')
+                         .style('position', 'absolute')
+                         .attr('width', 1)
+                         .attr('height', 1)
+                         .attr('class', d => 'flag flag-' + d.code)
+                         .call(d3.drag()
+                                     .on('start', started)
+                                     .on('drag', dragged)
+                                     .on('end', ended))
+                         .on('mousemove', d => {
+                            tooltip.style('visibility', 'visible')
+                                   .style('left', (d3.event.x) - radius * 5 + 'px')
+                                   .style('top', (d3.event.y) - radius * 11 + 'px')
+                                   .html(d.country)
+                         })
+                         .on('mouseout', d => {
+                            tooltip.style('visibility', 'hidden');
+                         });   
+   }
+   
+   componentDidMount() {
+      const source = 'https://raw.githubusercontent.com/DealPete/forceDirected/master/countries.json';
+      d3.json(source, (dataset) => {
+         this.buildGraph(dataset)
+      });
+   }
+   
+   render() {
+      return (
+         <div className='container'>
+            <div className='tooltip'></div>
+            <div className='title'>State Contiguity</div>
+         </div>
+      );
+   }
+}
+
+ReactDOM.render(
+   <App />,
+   document.getElementById('app')
+);
